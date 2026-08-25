@@ -1,0 +1,7 @@
+# Build files
+build/
+
+# Compiled executables
+chat_client
+chat_server
+
