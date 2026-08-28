@@ -17,6 +17,7 @@ In one terminal:
 ```
 ./chat_server 5555
 ```
+(Optionally pass a second argument for the log file name, e.g. `./chat_server 5555 my_log.log` — it defaults to `chat_history.log`.)
 
 In a second terminal:
 ```
@@ -29,7 +30,12 @@ In a third terminal:
 ```
 
 Once both clients have connected, type a message and press Enter to send it.
-Type `/quit` to leave the chat.
+
+**Commands:**
+- `/list` — ask the server who's currently connected
+- `/quit` — leave the chat
+
+**Chat history:** every relayed message is appended to `chat_history.log` (in the folder you ran `chat_server` from), so a transcript survives after both clients disconnect.
 
 ## Design / OOP structure
 
@@ -37,23 +43,16 @@ Type `/quit` to leave the chat.
 |--------------|--------------------------------------------------------------------|
 | `Socket`     | RAII wrapper around a raw POSIX socket fd (encapsulation) — hides `socket()`, `bind()`, `send()`, `recv()`, etc. behind simple methods, and closes the fd automatically. |
 | `Message`    | Bundles sender + content + timestamp, and knows how to format itself into a wire-friendly line and parse itself back. |
-| `ChatServer` | Accepts two `Socket`s and relays lines between them, one background thread per direction. |
-| `ChatClient` | Connects a `Socket`, then runs a send loop (reads stdin, main thread) and a receive loop (prints incoming lines, background thread) concurrently. |
+| `ChatLogger` | Thread-safe append-only file writer; owns the log file handle so `ChatServer` doesn't need to think about locking. |
+| `ChatServer` | Accepts two `Socket`s, performs a one-time name handshake with each, relays lines between them (one background thread per direction), answers `/list` directly, and logs every relayed chat line via `ChatLogger`. |
+| `ChatClient` | Connects a `Socket`, sends a `NAME:` handshake, then runs a send loop (reads stdin, main thread) and a receive loop (prints incoming lines, background thread) concurrently. |
+
+### Protocol notes
+
+- On connect, each client immediately sends `NAME:<name>` so the server can identify it (used by `/list`).
+- A client typing `/list` sends the literal text `/list` instead of a formatted chat message; the server intercepts it, replies directly to that client only, and never relays or logs it.
+- Everything else typed by the user is wrapped by `Message` into `[HH:MM:SS] name: content` before being sent, relayed as-is, and logged as-is.
 
 Each class owns one responsibility and hides its own implementation
 details from the rest of the program — that's the encapsulation /
 single-responsibility angle you'll want to call out in your report.
-
-## Where to go next (future features)
-
-- File sharing: add a `FileTransfer` class and a message "type" field
-  (text vs file) in `Message`.
-- More than 2 clients: turn `ChatServer` into a broadcaster with a
-  `std::vector<Socket>` of clients instead of a fixed pair — this is
-  a natural place to introduce inheritance/polymorphism, e.g. an
-  abstract `Room` base class with `BroadcastRoom` / `PrivateRoom`
-  subclasses.
-- GUI: keep `ChatClient`'s networking logic as-is and swap the
-  terminal I/O (`sendLoop`/`receiveLoop`) for a Qt or Dear ImGui
-  front end — this is exactly why networking and I/O were kept in
-  separate methods.

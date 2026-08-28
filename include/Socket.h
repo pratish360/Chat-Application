@@ -47,6 +47,15 @@ public:
     // Returns an empty string if the peer disconnected.
     std::string receiveLine() const;
 
+    // Shuts down both directions of communication (SHUT_RDWR) without
+    // fully closing the file descriptor. Unlike close(), this is
+    // POSIX-guaranteed to wake up a receiveLine() call currently
+    // blocked in *another thread* on this same socket, causing it to
+    // return immediately with an empty string -- which is exactly what
+    // we need when the main thread wants to make a background receiver
+    // thread stop waiting and exit.
+    void shutdown() const;
+
     void close();
     bool isValid() const { return fd_ != -1; }
     int getFd() const { return fd_; }

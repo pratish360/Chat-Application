@@ -124,3 +124,9 @@ std::string Socket::receiveLine() const {
     }
     return line;
 }
+
+void Socket::shutdown() const {
+    if (fd_ != -1) {
+        ::shutdown(fd_, SHUT_RDWR);
+    }
+}

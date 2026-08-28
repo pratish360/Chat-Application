@@ -33,6 +33,17 @@ void ChatClient::sendLoop() {
         if (input == "/quit") {
             break;
         }
+        if (input == "/list") {
+            // A command, not a chat message -- sent as-is, the server
+            // recognizes it and answers directly instead of relaying it.
+            try {
+                socket_.sendLine("/list");
+            } catch (const std::exception&) {
+                std::cout << "[system] Failed to send, connection lost.\n";
+                break;
+            }
+            continue;
+        }
         if (input.empty()) {
             continue;
         }
@@ -51,15 +62,23 @@ void ChatClient::sendLoop() {
 void ChatClient::run() {
     std::cout << "[client] connecting to " << host_ << ":" << port_ << " ...\n";
     socket_.connectTo(host_, port_);
-    std::cout << "[client] connected! Type a message and press Enter. Type /quit to leave.\n";
+
+    // One-time handshake so the server knows our name (used by /list).
+    socket_.sendLine("NAME:" + name_);
+
+    std::cout << "[client] connected! Type a message and press Enter.\n"
+               << "[client] Commands: /list (show connected users), /quit (leave)\n";
 
     std::thread receiver(&ChatClient::receiveLoop, this);
     sendLoop(); // runs on the main thread, reading from stdin
 
     running_ = false;
-    socket_.close(); // unblocks receiveLoop's pending recv()
+    socket_.shutdown(); // reliably unblocks receiveLoop's pending recv(), even
+                         // though shutdown() is called from a different thread
+                         // than the one currently blocked inside recv()
     if (receiver.joinable()) {
         receiver.join();
     }
+    socket_.close();
     std::cout << "[client] disconnected. Goodbye, " << name_ << "!\n";
 }

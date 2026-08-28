@@ -10,7 +10,7 @@ COMMON_OBJS := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/%.o,$(COMMON_SRCS))
 
 all: chat_server chat_client
 
-chat_server: $(BUILD_DIR)/main_server.o $(BUILD_DIR)/ChatServer.o $(COMMON_OBJS)
+chat_server: $(BUILD_DIR)/main_server.o $(BUILD_DIR)/ChatServer.o $(BUILD_DIR)/ChatLogger.o $(COMMON_OBJS)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
 chat_client: $(BUILD_DIR)/main_client.o $(BUILD_DIR)/ChatClient.o $(COMMON_OBJS)
